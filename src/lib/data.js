@@ -6,10 +6,12 @@ import {
   deleteDoc,
   setDoc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   orderBy,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -99,6 +101,47 @@ export const addDeadline = (uid, data) =>
 
 export const deleteDeadline = (uid, deadlineId) =>
   deleteDoc(doc(db, ...userPath(uid, "deadlines", deadlineId)));
+
+// ---------- Timetables ----------
+export const addTimetable = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "timetables")), {
+    ...data,
+    active: false,
+    createdAt: serverTimestamp(),
+  });
+
+export const updateTimetable = (uid, id, data) =>
+  updateDoc(doc(db, ...userPath(uid, "timetables", id)), data);
+
+export const deleteTimetable = (uid, id) =>
+  deleteDoc(doc(db, ...userPath(uid, "timetables", id)));
+
+export async function setActiveTimetable(uid, timetableId) {
+  const ref = collection(db, ...userPath(uid, "timetables"));
+  const snap = await getDocs(ref);
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    batch.update(d.ref, { active: d.id === timetableId });
+  });
+  await batch.commit();
+}
+
+export const setTimetableCompletion = (uid, dateKey, entryKey, value) =>
+  setDoc(
+    doc(db, ...userPath(uid, "timetableCompletions", dateKey)),
+    { [entryKey]: value },
+    { merge: true }
+  );
+
+export function subscribeTimetableCompletions(uid, cb) {
+  const ref = collection(db, ...userPath(uid, "timetableCompletions"));
+  return onSnapshot(ref, (snap) => {
+    const out = {};
+    snap.docs.forEach((d) => (out[d.id] = d.data()));
+    cb(out);
+  });
+}
+
 
 // ---------- Reminders ----------
 export const addReminder = (uid, data) =>

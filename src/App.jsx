@@ -8,6 +8,7 @@ import ProfileSetup from "./pages/ProfileSetup";
 import Dashboard from "./pages/Dashboard";
 import Academics from "./pages/Academics";
 import Calendar from "./pages/Calendar";
+import Timetables from "./pages/Timetables";
 import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Settings from "./pages/Settings";
@@ -50,10 +51,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Gate><Dashboard /></Gate>} />
       <Route path="/calendar" element={<Gate><Calendar /></Gate>} />
-      <Route
-        path="/timetables"
-        element={<Gate><ComingSoon title="Timetables" note="Custom timetables with schedule validation — coming soon." /></Gate>}
-      />
+      <Route path="/timetables" element={<Gate><Timetables /></Gate>} />
       <Route path="/academics" element={<Gate><Academics /></Gate>} />
       <Route
         path="/study"
