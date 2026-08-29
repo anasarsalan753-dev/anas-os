@@ -100,6 +100,19 @@ export const addDeadline = (uid, data) =>
 export const deleteDeadline = (uid, deadlineId) =>
   deleteDoc(doc(db, ...userPath(uid, "deadlines", deadlineId)));
 
+// ---------- Reminders ----------
+export const addReminder = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "reminders")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+
+export const updateReminder = (uid, reminderId, data) =>
+  updateDoc(doc(db, ...userPath(uid, "reminders", reminderId)), data);
+
+export const deleteReminder = (uid, reminderId) =>
+  deleteDoc(doc(db, ...userPath(uid, "reminders", reminderId)));
+
 // ---------- Profile ----------
 // users/{uid}/profile/main -> { name, hijriAdjustmentDays, sidebarCollapsed? }
 export async function getProfile(uid) {

@@ -8,6 +8,7 @@ import {
 } from "../lib/data";
 import { daysUntil, formatDate, todayKey, currentStreak } from "../lib/dates";
 import { formatHijri } from "../lib/hijri";
+import { nextOccurrence } from "../lib/reminders";
 import ProgressRing from "../components/ProgressRing";
 import LiveClock from "../components/LiveClock";
 
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [habits, setHabits] = useState([]);
   const [logs, setLogs] = useState({});
   const [profile, setProfileState] = useState(null);
+  const [reminders, setReminders] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -26,15 +28,12 @@ export default function Dashboard() {
     const u3 = subscribeHabitList(user.uid, setHabits);
     const u4 = subscribeHabitLogs(user.uid, setLogs);
     const u5 = subscribeProfile(user.uid, setProfileState);
+    const u6 = subscribeCollection(user.uid, "reminders", setReminders);
     return () => {
-      u1();
-      u2();
-      u3();
-      u4();
-      u5();
+      u1(); u2(); u3(); u4(); u5(); u6();
     };
   }, [user]);
-
+  
   const today = todayKey();
   const todayTasks = tasks.filter((t) => t.dueDate === today);
   const doneToday = todayTasks.filter((t) => t.completed).length;
