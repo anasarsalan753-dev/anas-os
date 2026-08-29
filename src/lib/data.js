@@ -1,0 +1,174 @@
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  getDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "./firebase";
+
+// Every piece of data lives under users/{uid}/... so the Firestore
+// security rules (see firestore.rules) can lock each user to their own tree.
+
+const userPath = (uid, ...segments) => ["users", uid, ...segments];
+
+// ---------- Generic collection subscription ----------
+export function subscribeCollection(uid, collectionName, cb, orderField) {
+  const ref = collection(db, ...userPath(uid, collectionName));
+  const q = orderField ? query(ref, orderBy(orderField)) : ref;
+  return onSnapshot(q, (snap) => {
+    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    cb(items);
+  });
+}
+
+// ---------- Subjects (Academics) ----------
+export const addSubject = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "subjects")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+
+export const updateSubject = (uid, subjectId, data) =>
+  updateDoc(doc(db, ...userPath(uid, "subjects", subjectId)), data);
+
+export const deleteSubject = (uid, subjectId) =>
+  deleteDoc(doc(db, ...userPath(uid, "subjects", subjectId)));
+
+// ---------- Tasks ----------
+export const addTask = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "tasks")), {
+    ...data,
+    completed: false,
+    createdAt: serverTimestamp(),
+  });
+
+export const toggleTask = (uid, taskId, completed) =>
+  updateDoc(doc(db, ...userPath(uid, "tasks", taskId)), {
+    completed,
+    completedAt: completed ? new Date().toISOString() : null,
+  });
+
+export const deleteTask = (uid, taskId) =>
+  deleteDoc(doc(db, ...userPath(uid, "tasks", taskId)));
+
+// ---------- Habits ----------
+// Habit definitions: users/{uid}/meta/habitList -> { habits: [{id,name}] }
+export async function getHabitList(uid) {
+  const ref = doc(db, ...userPath(uid, "meta", "habitList"));
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data().habits || [] : [];
+}
+
+export function subscribeHabitList(uid, cb) {
+  const ref = doc(db, ...userPath(uid, "meta", "habitList"));
+  return onSnapshot(ref, (snap) => {
+    cb(snap.exists() ? snap.data().habits || [] : []);
+  });
+}
+
+export const setHabitList = (uid, habits) =>
+  setDoc(doc(db, ...userPath(uid, "meta", "habitList")), { habits });
+
+// Daily habit log: users/{uid}/habitLogs/{YYYY-MM-DD} -> { [habitId]: true }
+export const setHabitLog = (uid, dateKey, habitId, value) =>
+  setDoc(
+    doc(db, ...userPath(uid, "habitLogs", dateKey)),
+    { [habitId]: value },
+    { merge: true }
+  );
+
+export function subscribeHabitLogs(uid, cb) {
+  const ref = collection(db, ...userPath(uid, "habitLogs"));
+  return onSnapshot(ref, (snap) => {
+    const logs = {};
+    snap.docs.forEach((d) => (logs[d.id] = d.data()));
+    cb(logs);
+  });
+}
+
+// ---------- Deadlines ----------
+export const addDeadline = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "deadlines")), data);
+
+export const deleteDeadline = (uid, deadlineId) =>
+  deleteDoc(doc(db, ...userPath(uid, "deadlines", deadlineId)));
+
+// ---------- Profile ----------
+// users/{uid}/profile/main -> { name, hijriAdjustmentDays, sidebarCollapsed? }
+export async function getProfile(uid) {
+  const ref = doc(db, ...userPath(uid, "profile", "main"));
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
+export function subscribeProfile(uid, cb) {
+  const ref = doc(db, ...userPath(uid, "profile", "main"));
+  return onSnapshot(ref, (snap) => cb(snap.exists() ? snap.data() : null));
+}
+
+export const setProfile = (uid, data) =>
+  setDoc(doc(db, ...userPath(uid, "profile", "main")), data, { merge: true });
+
+// ---------- One-time seed data for a brand new account ----------
+export async function seedInitialData(uid) {
+  const flagRef = doc(db, ...userPath(uid, "meta", "seeded"));
+  const flagSnap = await getDoc(flagRef);
+  if (flagSnap.exists()) return; // already seeded, never overwrite again
+
+  await setHabitList(uid, [
+    { id: "fajr", name: "Fajr Prayer" },
+    { id: "prayers", name: "5 Daily Prayers" },
+    { id: "study4h", name: "Study (Min. 4 hrs)" },
+    { id: "workout", name: "Workout" },
+    { id: "read20", name: "Read 20 Pages" },
+    { id: "nosocial", name: "No Social Media (Study Hours)" },
+  ]);
+
+  const backlogExamWindow = "2026-10-25"; // approx, edit once university confirms
+  await Promise.all([
+    addDeadline(uid, {
+      title: "Backlog Registration Deadline",
+      date: "2026-08-28",
+      type: "critical",
+    }),
+    addDeadline(uid, {
+      title: "Semester 4 Backlog Exams (approx.)",
+      date: backlogExamWindow,
+      type: "exam",
+    }),
+    addDeadline(uid, {
+      title: "Semester 5 Exams (approx.)",
+      date: backlogExamWindow,
+      type: "exam",
+    }),
+  ]);
+
+  await Promise.all(
+    [
+      { name: "Subject 1", type: "backlog" },
+      { name: "Subject 2", type: "backlog" },
+      { name: "Subject 3", type: "backlog" },
+      { name: "Subject 4", type: "backlog" },
+    ].map((s) =>
+      addSubject(uid, {
+        ...s,
+        units: [1, 2, 3, 4, 5].map((n) => ({
+          id: `u${n}`,
+          name: `Unit ${n}`,
+          topics: [],
+          notes: "",
+          done: false,
+        })),
+      })
+    )
+  );
+
+  await setDoc(flagRef, { seededAt: new Date().toISOString() });
+}
