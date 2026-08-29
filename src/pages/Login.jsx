@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const { login } = useAuth();
@@ -24,12 +25,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-ink-950 px-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="text-xs tracking-[0.2em] text-brass-500 uppercase mb-1">
-            Discipline today, freedom tomorrow
-          </p>
+          <div className="text-center mb-8">
+          <Logo size={44} className="mx-auto mb-4" />
           <h1 className="text-2xl font-display font-semibold">
-            Command Center
+            Anas OS
           </h1>
         </div>
 

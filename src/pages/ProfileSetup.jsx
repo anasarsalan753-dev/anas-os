@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
 import { setProfile } from "../lib/data";
+import Logo from "../components/Logo";
 
 export default function ProfileSetup({ onComplete }) {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export default function ProfileSetup({ onComplete }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-ink-950 px-4">
       <div className="w-full max-w-sm text-center">
+        <Logo size={44} className="mx-auto mb-4" />
         <p className="text-xs tracking-[0.2em] text-brass-500 uppercase mb-2">
           Welcome to
         </p>
