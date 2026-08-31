@@ -59,6 +59,16 @@ export function isSameDay(a, b) {
     a.getDate() === b.getDate()
   );
 }
+
+export function timeOfDayGreeting(date = new Date()) {
+  const h = date.getHours();
+  if (h < 5) return "Good night";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  if (h < 21) return "Good evening";
+  return "Good night";
+}
+
 // Longest current streak counting backwards from today across the given
 // habit's daily log entries. Stops at the first gap.
 export function currentStreak(logs, habitId) {

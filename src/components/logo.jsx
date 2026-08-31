@@ -6,25 +6,28 @@ export default function Logo({ size = 32, className = "" }) {
       viewBox="0 0 32 32"
       className={className}
       role="img"
-      aria-label="Anas OS"
+      aria-label="FocusOS"
     >
-      <rect x="1" y="1" width="30" height="30" rx="8" fill="#1B1F26" stroke="#31373F" strokeWidth="1" />
-      <path
-        d="M10 24 L16 8 L22 24"
+      <circle
+        cx="16"
+        cy="16"
+        r="13"
         fill="none"
         stroke="#D9B968"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth="1.4"
+        opacity="0.35"
       />
-      <path
-        d="M12.5 18.5 L19.5 18.5"
+      <circle
+        cx="16"
+        cy="16"
+        r="9"
         fill="none"
         stroke="#D9B968"
-        strokeWidth="2.2"
-        strokeLinecap="round"
+        strokeWidth="1.8"
+        opacity="0.7"
       />
-      <circle cx="16" cy="8" r="1.7" fill="#4F9A86" />
+      <circle cx="16" cy="16" r="3.2" fill="#D9B968" />
+      <circle cx="16" cy="3.4" r="1.4" fill="#4F9A86" />
     </svg>
   );
 }

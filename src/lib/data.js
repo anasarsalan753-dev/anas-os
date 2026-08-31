@@ -102,6 +102,25 @@ export const addDeadline = (uid, data) =>
 export const deleteDeadline = (uid, deadlineId) =>
   deleteDoc(doc(db, ...userPath(uid, "deadlines", deadlineId)));
 
+// ---------- Namaz (5 daily prayers) ----------
+export const PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+
+export const setPrayerLog = (uid, dateKey, prayer, value) =>
+  setDoc(
+    doc(db, ...userPath(uid, "prayerLogs", dateKey)),
+    { [prayer]: value },
+    { merge: true }
+  );
+
+export function subscribePrayerLogs(uid, cb) {
+  const ref = collection(db, ...userPath(uid, "prayerLogs"));
+  return onSnapshot(ref, (snap) => {
+    const out = {};
+    snap.docs.forEach((d) => (out[d.id] = d.data()));
+    cb(out);
+  });
+}
+
 // ---------- Timetables ----------
 export const addTimetable = (uid, data) =>
   addDoc(collection(db, ...userPath(uid, "timetables")), {

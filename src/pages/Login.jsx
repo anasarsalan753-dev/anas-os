@@ -28,7 +28,7 @@ export default function Login() {
           <div className="text-center mb-8">
           <Logo size={44} className="mx-auto mb-4" />
           <h1 className="text-2xl font-display font-semibold">
-            Anas OS
+            Focus OS
           </h1>
         </div>
 

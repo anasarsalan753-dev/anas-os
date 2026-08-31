@@ -60,28 +60,38 @@ export default function Sidebar() {
           flex flex-col h-full transition-all duration-200
         `}
       >
-          <div
+        <div
           className={`border-b border-ink-700/60 flex ${
             collapsed
               ? "flex-col items-center gap-2 py-4"
               : "flex-row items-center justify-between px-4 py-5"
           }`}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Logo size={28} className="shrink-0" />
-            {!collapsed && (
-              <h1 className="text-base font-display font-semibold text-parchment-100 truncate">
-                Anas OS
-              </h1>
-            )}
-          </div>
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className="hidden md:flex p-1.5 rounded-md text-parchment-300 hover:bg-ink-800 hover:text-parchment-100"
-            aria-label="Toggle sidebar"
-          >
-            {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-          </button>
+          {collapsed ? (
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              className="hidden md:flex p-1.5 rounded-md text-parchment-300 hover:bg-ink-800 hover:text-parchment-100"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeft size={16} />
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Logo size={26} className="shrink-0" />
+                <h1 className="text-base font-display font-semibold text-parchment-100 truncate">
+                  FocusOS
+                </h1>
+              </div>
+              <button
+                onClick={() => setCollapsed((c) => !c)}
+                className="hidden md:flex p-1.5 rounded-md text-parchment-300 hover:bg-ink-800 hover:text-parchment-100"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </>
+          )}
           <button
             onClick={() => setMobileOpen(false)}
             className="md:hidden p-1.5 rounded-md text-parchment-300"

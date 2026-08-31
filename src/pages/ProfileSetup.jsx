@@ -29,7 +29,7 @@ export default function ProfileSetup({ onComplete }) {
           Welcome to
         </p>
         <h1 className="text-2xl font-display font-semibold mb-8">
-          Anas OS
+          Focus OS
         </h1>
 
         <form onSubmit={handleSubmit} className="card p-6 space-y-4 text-left">
