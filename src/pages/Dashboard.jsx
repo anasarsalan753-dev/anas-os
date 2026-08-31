@@ -14,7 +14,7 @@ import { daysUntil, formatDate, todayKey, currentStreak, timeOfDayGreeting } fro
 import { formatHijri } from "../lib/hijri";
 import { nextOccurrence } from "../lib/reminders";
 import LiveClock from "../components/LiveClock";
-import StatCard from "../components/StatCard";
+import StatCard from "../components/StartCard";
 
 const PRAYER_LABELS = { fajr: "Fajr", dhuhr: "Dhuhr", asr: "Asr", maghrib: "Maghrib", isha: "Isha" };
 
