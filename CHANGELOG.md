@@ -6,6 +6,109 @@ obvious).
 
 ---
 
+## 2026-09-02 — Process: documentation sync (PROJECT_STATUS.md, CHANGELOG.md)
+
+A repository inspection found that `PROJECT_STATUS.md` and this
+changelog had drifted significantly out of date: Batch 4 (Timetable) was
+still listed as "Next Task" and Batch 5 wasn't mentioned at all, while
+the actual code in `src/` shows both are implemented. This session
+updated `PROJECT_STATUS.md` and added the four retroactive entries below
+(Batch 4, 5A, 5B, 5C) based on reading the current code. No application
+code, Firebase config, or Firestore rules were changed.
+
+**Files touched:** 2 (`PROJECT_STATUS.md`, `CHANGELOG.md`), both edited,
+no code changes.
+
+---
+
+## Retroactive entry — Batch 4: Timetable system
+
+**Note:** No changelog entry existed for this batch prior to this sync.
+Original implementation date is unknown. Details below are reconstructed
+from reading the current code on 2026-09-02, not from a session log.
+
+**Added (per current code):**
+- `src/lib/timetable.js` — `timeToMinutes()`, `formatTime12()`,
+  `formatDuration()`, `entryDuration()` (derives duration from from/to,
+  never stored), `validateEntries()` (detects overlaps, computes
+  scheduled/unscheduled/conflict minutes out of a 24h day)
+- `src/components/TimePicker.jsx` — hour/minute/AM-PM picker used in the
+  timetable editor
+- `src/pages/Timetables.jsx` — timetable list, create/edit modal with
+  row-based entry editor, active-timetable toggle, today's checklist for
+  the active timetable
+
+**Changed (per current code):**
+- `src/lib/data.js` — `addTimetable`, `updateTimetable`, `deleteTimetable`,
+  `setActiveTimetable` (batch-writes so only one timetable is ever
+  active), `setTimetableCompletion`, `subscribeTimetableCompletions`
+- `src/App.jsx` — `/timetables` route wired to the real page
+- `src/pages/Dashboard.jsx` — added a "Timetable Follow" stat card reading
+  from the active timetable + today's completions
+
+**Firestore:** new collections `users/{uid}/timetables/{id}` and
+`users/{uid}/timetableCompletions/{date}`, confirmed live in
+`src/lib/data.js`.
+
+---
+
+## Retroactive entry — Batch 5A: FocusOS rebrand + Home/Dashboard redesign
+
+**Note:** No changelog entry existed for this batch prior to this sync.
+Original implementation date is unknown. Details below are reconstructed
+from reading the current code on 2026-09-02.
+
+**Changed (per current code):**
+- `src/components/Sidebar.jsx` — header text changed to "FocusOS"
+- `src/pages/Dashboard.jsx` — rebuilt around a `StatCard` grid (Habits,
+  Timetable Follow, Tasks, Namaz), replacing whatever the prior dashboard
+  layout was
+- `src/components/StartCard.jsx` — new component (exports `StatCard`);
+  filename does not match the exported name
+
+**Added (per current code):**
+- Namaz (5 daily prayers) tracking: `PRAYERS` constant and
+  `setPrayerLog()` / `subscribePrayerLogs()` in `src/lib/data.js`, new
+  `users/{uid}/prayerLogs/{date}` collection, inline prayer-toggle UI on
+  the Dashboard
+
+This collection and feature were not previously documented in
+CLAUDE.md's Firestore data model section — flagged for that file to be
+updated separately (out of scope for this documentation-sync session,
+which touches only PROJECT_STATUS.md and CHANGELOG.md).
+
+---
+
+## Retroactive entry — Batch 5B: Calendar compaction
+
+**Note:** No changelog entry existed for this batch prior to this sync,
+and no prior version of `Calendar.jsx` was available for comparison.
+This entry records the current state only — it cannot describe what
+specifically changed or when.
+
+**Observed in current code (`src/pages/Calendar.jsx`):**
+- Compact month-grid cell sizing and small type scale for day numbers
+- Two-column layout combining the month grid with a side panel (selected
+  day detail + "Upcoming" reminders list)
+
+---
+
+## Retroactive entry — Batch 5C: Timetable UX
+
+**Note:** No changelog entry existed for this batch prior to this sync.
+This entry records the current state only, reconstructed from code.
+
+**Observed in current code:**
+- `src/components/TimePicker.jsx` — dedicated hour/minute/AM-PM picker
+  used in place of raw `<input type="time">` fields in the timetable
+  editor
+- `src/pages/Timetables.jsx` — segmented progress bar showing scheduled /
+  conflict minutes, plus inline "Schedule Conflict" and "End time must be
+  after start time" warnings, driven by `validateEntries()` from
+  `src/lib/timetable.js`
+
+---
+
 ## 2026-08-29 — Process: multi-session collaboration setup
 
 Created `CLAUDE.md`, `PROJECT_STATUS.md`, `CHANGELOG.md` to allow
@@ -33,6 +136,10 @@ No code changes.
   that should have been updated in the Batch 1 rename but was missed
 
 **Files touched:** 5 (1 new, 4 edited)
+
+**Note added 2026-09-02:** the committed file is actually
+`src/components/logo.jsx` (lowercase), not `Logo.jsx` as recorded here —
+see Known Issues in PROJECT_STATUS.md.
 
 ---
 
