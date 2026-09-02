@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, X, Trash2, Check, AlertTriangle } from "lucide-react";
 import { useAuth } from "../lib/auth";
+import TimePicker from "../components/TimePicker";
 import {
   subscribeCollection,
   addTimetable,
@@ -242,7 +243,7 @@ export default function Timetables() {
                 className="w-full bg-ink-700 border border-ink-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-brass-500"
               />
 
-              <div className="space-y-2">
+                            <div className="space-y-2">
                 {draft.entries.map((entry) => {
                   const invalid = validation.invalidIds.has(entry.id);
                   const conflict = validation.conflictIds.has(entry.id);
@@ -250,30 +251,26 @@ export default function Timetables() {
                   return (
                     <div
                       key={entry.id}
-                      className={`flex items-center gap-2 p-2 rounded-lg border ${
+                      className={`flex flex-wrap items-center gap-2 p-2 rounded-lg border ${
                         invalid || conflict
                           ? "border-clay-500/60 bg-clay-500/5"
                           : "border-transparent bg-ink-700/40"
                       }`}
                     >
-                      <input
-                        type="time"
+                      <TimePicker
                         value={entry.from}
-                        onChange={(e) => updateEntry(entry.id, "from", e.target.value)}
-                        className="bg-ink-700 border border-ink-600 rounded-md px-2 py-1.5 text-xs outline-none w-[92px]"
+                        onChange={(v) => updateEntry(entry.id, "from", v)}
                       />
                       <span className="text-parchment-300 text-xs">to</span>
-                      <input
-                        type="time"
+                      <TimePicker
                         value={entry.to}
-                        onChange={(e) => updateEntry(entry.id, "to", e.target.value)}
-                        className="bg-ink-700 border border-ink-600 rounded-md px-2 py-1.5 text-xs outline-none w-[92px]"
+                        onChange={(v) => updateEntry(entry.id, "to", v)}
                       />
                       <input
                         value={entry.task}
                         onChange={(e) => updateEntry(entry.id, "task", e.target.value)}
                         placeholder="Task"
-                        className="flex-1 bg-ink-700 border border-ink-600 rounded-md px-2 py-1.5 text-xs outline-none min-w-0"
+                        className="flex-1 min-w-[120px] bg-ink-700 border border-ink-600 rounded-md px-2 py-1.5 text-xs outline-none"
                       />
                       <span className="text-[11px] text-parchment-300 w-14 text-right shrink-0">
                         {duration ? formatDuration(duration) : "—"}
