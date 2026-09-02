@@ -120,60 +120,60 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="px-8 pt-6 pb-8 space-y-4">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-display font-semibold">Calendar</h2>
-          <p className="text-xs text-parchment-300 mt-1">
-            Gregorian + Hijri dates, with reminders for birthdays, exams, and anything recurring.
+          <h2 className="text-xl font-display font-semibold">Calendar</h2>
+          <p className="text-[11px] text-parchment-300 mt-0.5">
+            Gregorian + Hijri, with recurring reminders.
           </p>
         </div>
         <button
           onClick={() => openAddForm(selectedDay?.date)}
-          className="flex items-center gap-1.5 bg-brass-500 hover:bg-brass-400 text-ink-950 font-semibold rounded-lg px-3 py-2 text-sm"
+          className="flex items-center gap-1.5 bg-brass-500 hover:bg-brass-400 text-ink-950 font-semibold rounded-lg px-3 py-1.5 text-xs"
         >
-          <Plus size={16} /> Add Reminder
+          <Plus size={14} /> Add Reminder
         </button>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 card p-5">
-          <div className="flex items-center justify-between mb-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card p-4">
+          <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => goMonth(-1)}
-              className="p-2 rounded-lg hover:bg-ink-700 text-parchment-300 hover:text-parchment-100"
+              className="p-1.5 rounded-lg hover:bg-ink-700 text-parchment-300 hover:text-parchment-100"
               aria-label="Previous month"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
 
             <div className="text-center">
-              <h3 className="text-lg font-display font-semibold">
+              <h3 className="text-sm font-display font-semibold">
                 {cursor.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
               </h3>
-              <p className="text-xs text-brass-400 mt-0.5">
+              <p className="text-[10px] text-brass-400">
                 {HIJRI_MONTHS[midMonthHijri.month - 1]} {midMonthHijri.year} AH
               </p>
             </div>
 
             <button
               onClick={() => goMonth(1)}
-              className="p-2 rounded-lg hover:bg-ink-700 text-parchment-300 hover:text-parchment-100"
+              className="p-1.5 rounded-lg hover:bg-ink-700 text-parchment-300 hover:text-parchment-100"
               aria-label="Next month"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5 mb-2">
+          <div className="grid grid-cols-7 gap-1 mb-1">
             {WEEKDAYS.map((w) => (
-              <div key={w} className="text-center text-[11px] font-medium text-parchment-300 py-1">
+              <div key={w} className="text-center text-[9px] font-medium text-parchment-300 py-0.5">
                 {w}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1">
             {cells.map((cell) => {
               const isToday = isSameDay(cell.date, today);
               const isSelected = selectedDay && isSameDay(cell.date, selectedDay.date);
@@ -183,7 +183,7 @@ export default function CalendarPage() {
                 <button
                   key={cell.key}
                   onClick={() => setSelectedDay(cell)}
-                  className={`aspect-square rounded-lg p-1.5 flex flex-col text-left transition-colors ${
+                  className={`relative h-11 sm:h-12 rounded-md px-1 py-0.5 text-left transition-colors ${
                     isSelected
                       ? "bg-brass-500/30 border border-brass-500"
                       : isToday
@@ -194,21 +194,21 @@ export default function CalendarPage() {
                   }`}
                 >
                   <span
-                    className={`text-xs font-semibold ${
+                    className={`block text-[11px] leading-none font-semibold ${
                       isToday || isSelected ? "text-brass-400" : cell.inMonth ? "text-parchment-100" : "text-parchment-300"
                     }`}
                   >
                     {cell.date.getDate()}
                   </span>
-                  <span className="text-[9px] text-parchment-300 leading-tight">
+                  <span className="block text-[8px] leading-none text-parchment-300 mt-1">
                     {h.day} {HIJRI_MONTHS[h.month - 1]?.slice(0, 3)}
                   </span>
                   {dayReminders.length > 0 && (
-                    <div className="flex gap-0.5 mt-auto flex-wrap">
-                      {dayReminders.slice(0, 4).map((r) => (
+                    <div className="absolute bottom-1 right-1 flex gap-0.5">
+                      {dayReminders.slice(0, 3).map((r) => (
                         <span
                           key={r.id}
-                          className={`w-1.5 h-1.5 rounded-full ${TYPE_COLOR[r.type] || "bg-parchment-300"}`}
+                          className={`w-1 h-1 rounded-full ${TYPE_COLOR[r.type] || "bg-parchment-300"}`}
                         />
                       ))}
                     </div>
@@ -219,58 +219,58 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="space-y-5">
-          <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3">
+        <div className="space-y-4">
+          <div className="card p-4">
+            <h3 className="text-xs font-semibold mb-2">
               {selectedDay
                 ? selectedDay.date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
                 : "Select a day"}
             </h3>
             {selectedDay && selectedDayReminders.length === 0 && (
-              <p className="text-xs text-parchment-300">No reminders on this day.</p>
+              <p className="text-[11px] text-parchment-300">No reminders on this day.</p>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {selectedDayReminders.map((r) => (
                 <button
                   key={r.id}
                   onClick={() => openEditForm(r)}
-                  className="w-full text-left bg-ink-700/40 hover:bg-ink-700 rounded-lg px-3 py-2"
+                  className="w-full text-left bg-ink-700/40 hover:bg-ink-700 rounded-lg px-2.5 py-1.5"
                 >
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${TYPE_COLOR[r.type]}`} />
-                    <span className="text-sm font-medium">{r.title}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${TYPE_COLOR[r.type]}`} />
+                    <span className="text-xs font-medium">{r.title}</span>
                   </div>
-                  {r.time && <p className="text-[11px] text-parchment-300 mt-0.5 ml-4">{r.time}</p>}
+                  {r.time && <p className="text-[10px] text-parchment-300 mt-0.5 ml-3.5">{r.time}</p>}
                 </button>
               ))}
             </div>
             {selectedDay && (
               <button
                 onClick={() => openAddForm(selectedDay.date)}
-                className="w-full mt-3 text-xs text-brass-400 hover:text-brass-300 flex items-center justify-center gap-1 py-1.5"
+                className="w-full mt-2 text-[11px] text-brass-400 hover:text-brass-300 flex items-center justify-center gap-1 py-1"
               >
-                <Plus size={13} /> Add reminder for this day
+                <Plus size={12} /> Add reminder for this day
               </button>
             )}
           </div>
 
-          <div className="card p-5">
-            <h3 className="text-sm font-semibold mb-3">Upcoming</h3>
+          <div className="card p-4">
+            <h3 className="text-xs font-semibold mb-2">Upcoming</h3>
             {upcoming.length === 0 && (
-              <p className="text-xs text-parchment-300">No upcoming reminders.</p>
+              <p className="text-[11px] text-parchment-300">No upcoming reminders.</p>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
               {upcoming.map(({ r, next }) => (
                 <button
                   key={r.id}
                   onClick={() => openEditForm(r)}
-                  className="w-full flex items-center justify-between text-left hover:bg-ink-700/40 rounded-lg px-2 py-1.5"
+                  className="w-full flex items-center justify-between text-left hover:bg-ink-700/40 rounded-lg px-2 py-1"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${TYPE_COLOR[r.type]}`} />
-                    <span className="text-sm truncate">{r.title}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${TYPE_COLOR[r.type]}`} />
+                    <span className="text-xs truncate">{r.title}</span>
                   </div>
-                  <span className="text-[11px] text-parchment-300 shrink-0 ml-2">
+                  <span className="text-[10px] text-parchment-300 shrink-0 ml-2">
                     {formatDate(todayKey(next))}
                   </span>
                 </button>
