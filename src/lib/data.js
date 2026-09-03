@@ -138,11 +138,31 @@ export const updateStudyContent = (uid, id, data) =>
 export const deleteStudyContent = (uid, id) =>
   deleteDoc(doc(db, ...userPath(uid, "studyContents", id)));
 
-// One-time, NON-DESTRUCTIVE migration of the legacy Academics `subjects`
-// collection into the new generic Study/Work hierarchy. The original
-// `subjects` collection is never modified or deleted — it remains as a
-// historical backup indefinitely, per explicit user requirement.
-export async function migrateAcademicsToStudy(uid) {
+// ============================================================================
+// DISABLED — do not call this function, and do not re-add a call to it
+// anywhere in the app's startup/login flow.
+//
+// Removed from App.jsx's Gate on [architecture foundation pass] because it
+// ran automatically and unconditionally on every login with no user
+// consent, and because it wrote hardcoded institutional labels ("B.Tech",
+// "(Backlog)", "(Sem 5)") into new Firestore documents — both directly
+// against the approved FocusOS architecture (see CLAUDE.md).
+//
+// It is also schema-incompatible with the target Study/Work model: it
+// writes into the old fixed studyPrograms/studySubjects/studyContents
+// collections, which are being replaced by the generic users/{uid}/nodes
+// hierarchy (see CLAUDE.md "Generic node system").
+//
+// Kept here, unused, only as a reference for whoever eventually builds the
+// real import feature. That feature must be: explicit (a button the user
+// clicks), opt-in (never runs on its own), non-destructive (never touches
+// `subjects`), and must not hardcode any institutional name — the user
+// names the imported root themselves at import time.
+//
+// The original `subjects` collection is never modified or deleted by this
+// function — it only ever reads from `subjects`.
+// ============================================================================
+export async function migrateAcademicsToStudy_DISABLED_DO_NOT_CALL(uid) {
   const flagRef = doc(db, ...userPath(uid, "meta", "studyMigrated"));
   const flagSnap = await getDoc(flagRef);
   if (flagSnap.exists()) return;

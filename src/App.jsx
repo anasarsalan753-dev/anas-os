@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { seedInitialData, subscribeProfile, migrateAcademicsToStudy } from "./lib/data";
+import { seedInitialData, subscribeProfile } from "./lib/data";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import ProfileSetup from "./pages/ProfileSetup";
@@ -21,7 +21,10 @@ function Gate({ children }) {
   useEffect(() => {
     if (!user) return;
     seedInitialData(user.uid);
-    migrateAcademicsToStudy(user.uid);
+    // NOTE: Automatic Study migration was removed from startup per the
+    // architecture foundation decision — see CLAUDE.md "Study/Work" and
+    // PROJECT_STATUS.md. Any future subjects -> Study import must be an
+    // explicit, user-triggered, non-destructive action, never automatic.
     const unsub = subscribeProfile(user.uid, setProfile);
     return unsub;
   }, [user]);

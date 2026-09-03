@@ -6,6 +6,140 @@ obvious).
 
 ---
 
+## 2026-09-03 — Architecture foundation: generic nodes, disabled auto-migration, corrected CLAUDE.md
+
+FocusOS's product direction was formally revised: from a fixed
+student-productivity app to a customizable personal operating system
+(hybrid architecture — generic `nodes` hierarchy for genuinely
+tree-shaped domains, feature-specific collections for everything else,
+a thin configuration layer, a closed module registry). This followed a
+multi-round design process and an audit of commit `99fb1ca`, which had
+built Study/Work as a fixed `studyPrograms → studySubjects →
+studyContents` schema with an automatic, unconditional migration from
+`subjects` — both against the newly-approved architecture, though not
+through any fault of whoever built `99fb1ca`: `CLAUDE.md` still
+documented the old fixed-schema assumption at the time, so `99fb1ca`
+was internally consistent with the documentation it had. This session
+corrects that documentation gap and lays the tested foundation for the
+rebuild — it does not itself rebuild Study/Work, Pomodoro, or the
+Dashboard.
+
+**Changed:**
+- `src/App.jsx` — removed the unconditional `migrateAcademicsToStudy()`
+  call from `Gate`'s login-time `useEffect`. Import statement updated
+  accordingly.
+- `src/lib/data.js` — the migration function itself renamed to
+  `migrateAcademicsToStudy_DISABLED_DO_NOT_CALL` and given an extensive
+  comment explaining why it was disabled and what a correct future
+  replacement must look like (explicit, opt-in, non-destructive,
+  no hardcoded labels). Function body otherwise unchanged — kept only
+  as a reference, not deleted, per "keep rollback paths" principle.
+- `CLAUDE.md` — corrected throughout: product framing ("What this
+  project is"), the stale "Study Program → Subject → Content" rule
+  replaced with the actual locked generic-node architecture, new
+  sections added ("Generic node system", "Module registry &
+  configuration", "Frontend layering"), architecture map and Firestore
+  data model sections updated to match the real current repository
+  (including the now-superseded `studyPrograms`/etc. collections and
+  the planned `nodes`/`config` collections), testing discipline section
+  updated to reference the new `scripts/` test files.
+
+**Added:**
+- `src/domain/progress.js` — pure, zero-Firebase/React generic progress
+  calculation contract (`calculateLeafProgress`,
+  `aggregateChildrenProgress`, `computeNodeProgress`), matching the
+  approved 7 tracking types with "average" as the only aggregation mode
+  (weighted/sum/any-all deliberately not implemented — no approved
+  requirement for them yet).
+- `src/domain/nodeTree.js` — pure hierarchy/path contract
+  (`computeNodePath`, `computeDescendantPathUpdates`, `childrenOf`,
+  `hasAncestor`, `wouldCreateCycle`). `path` is ancestors-only, excludes
+  self, always derived from `parentId` — never a separate source of
+  truth.
+- `src/modules/registry.js` — the closed, FocusOS-controlled list of
+  toggleable capabilities (`MODULES`) plus `isModuleEnabled()`, with a
+  safe-default rule (missing config = visible). Explicitly documented as
+  a *different* closed set from a node's `moduleKey` field, to prevent
+  the two concepts being conflated in future work.
+- `scripts/test-progress.mjs`, `scripts/test-nodeTree.mjs` — plain
+  `node`-runnable verification, following the project's existing
+  testing convention (no framework installed). 41 assertions total,
+  all passing. Run with `node scripts/test-progress.mjs` /
+  `node scripts/test-nodeTree.mjs`.
+
+**Explicitly NOT changed this session** (see `PROJECT_STATUS.md`'s "Next
+Task" for what happens to these next): `Study.jsx`, `Pomodoro.jsx`,
+`Exercise.jsx`, `Dashboard.jsx`, `Sidebar.jsx`, `Tasks.jsx`,
+`studyPrograms`/`studySubjects`/`studyContents` collections and their
+data, `subjects` collection, `firestore.rules` (already correct — the
+existing wildcard rule already covers `nodes` and `config` with no
+changes needed).
+
+**Verification performed:** `npm run build` (0 errors — note: a
+pre-existing, unrelated `Logo.jsx`/`logo.jsx` casing issue, tracked in
+`PROJECT_STATUS.md`'s Known Issues, was worked around locally with an
+untracked file for verification purposes only, not part of this
+commit), `npx oxlint src/` (0 errors, 4 warnings — 2 pre-existing/known,
+2 pre-existing in `Study.jsx` unrelated to this session's changes,
+confirmed by checking the same file at the prior commit), both new test
+scripts passing (41/41 assertions).
+
+**Files touched:** 2 modified (`src/App.jsx`, `src/lib/data.js`), 3 new
+source files (`src/domain/progress.js`, `src/domain/nodeTree.js`,
+`src/modules/registry.js`), 2 new test scripts, plus `CLAUDE.md`,
+`PROJECT_STATUS.md`, this file.
+
+---
+
+## Retroactive entry — Study/Pomodoro/Exercise (commit `99fb1ca`)
+
+**Note:** No changelog entry existed for this commit prior to this
+session. Reconstructed from reading the actual code and `git diff
+aa2c7b7 99fb1ca`, not from a session log.
+
+**Added:**
+- `src/lib/study.js` — `CONTENT_TYPES` (hardcoded enum: lecture, video,
+  book, chapter, notes, pyq, assignment, custom), `contentStatus()`,
+  `contentPercent()` (both correctly derive status from actual progress
+  rather than a separate stored field — good pattern, worth keeping
+  conceptually even though the surrounding schema is being replaced),
+  `formatHMS()`/`hmsToSeconds()`/`secondsToHms()` time helpers.
+- `src/pages/Study.jsx` — Program → Subject → Content UI: breadcrumb
+  nav, add/edit modals, a duration-based progress editor for
+  duration-tracked content.
+- `src/pages/Pomodoro.jsx` — 25/5 and 50/10 presets, custom preset,
+  start/pause/reset timer, optional linking to a Study program/subject,
+  sessions logged on focus-phase completion.
+- `src/pages/Exercise.jsx` — height (stored on profile), daily weight
+  log, daily exercise log with sets/reps/duration, today/history views.
+- `src/lib/data.js` — `addStudyProgram`/`Subject`/`Content` + update/
+  delete variants; `migrateAcademicsToStudy()` (see the 2026-09-03 entry
+  above for why this was disabled); `addPomodoroSession`,
+  `subscribePomodoroSessions`; `addExerciseLog`/`update`/`delete`,
+  `setWeightLog`/`subscribeWeightLogs`.
+
+**Changed:**
+- `src/App.jsx` — added `/study`, `/pomodoro`, `/exercise` routes;
+  removed `/tasks` route; added the (since-removed) automatic migration
+  call.
+- `src/components/Sidebar.jsx` — added Study/Pomodoro/Exercise nav
+  links, removed Tasks nav link.
+- `src/pages/Dashboard.jsx` — replaced the Tasks stat card with
+  Pomodoro-today and Exercise-today cards.
+
+**Firestore:** new collections `studyPrograms`, `studySubjects`,
+`studyContents`, `pomodoroSessions`, `exerciseLogs`, `weightLogs`, plus
+`meta/studyMigrated` (migration guard flag). `tasks` collection and its
+CRUD functions in `data.js` were **not** touched — confirmed intact by
+diff, only the route/nav were removed.
+
+**Superseded 2026-09-03:** the Study data model (`studyPrograms`/etc.)
+and the automatic migration are being replaced — see the entry above and
+`PROJECT_STATUS.md`'s "Next Task". Pomodoro, Exercise, and the Dashboard
+card swap are being kept as-is architecturally sound.
+
+---
+
 ## 2026-09-02 — Process: documentation sync (PROJECT_STATUS.md, CHANGELOG.md)
 
 A repository inspection found that `PROJECT_STATUS.md` and this

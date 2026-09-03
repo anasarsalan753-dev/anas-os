@@ -6,10 +6,30 @@ currently happening, see `PROJECT_STATUS.md`. For history, see `CHANGELOG.md`.
 
 ## What this project is
 
-A private, single-user personal command center: academics (backlog + Sem 5
-tracking), a generic Study system (UPSC/RCA and any future subject), a
-Calendar with Hijri dates and recurring reminders, Timetables, Tasks, and
-Habits. Built for one specific person (Anas), not a multi-tenant product.
+FocusOS — a private, single-user personal operating system. Built for one
+specific person (Anas), not a multi-tenant product, but architected around
+this principle:
+
+> FocusOS provides the tools; the user builds their own FocusOS.
+> FocusOS should adapt to the user — the user should not have to adapt to
+> FocusOS.
+
+FocusOS is NOT fundamentally a student productivity app, an academics
+tracker, a timetable app, a habit tracker, a prayer tracker, or a Pomodoro
+app. Those are all *capabilities* it currently has, not what it
+architecturally is. Currently live/enabled capabilities: a generic
+Study/Work hierarchy, a Calendar with Hijri dates and recurring reminders,
+Timetables, Habits, Namaz (5 daily prayers), Pomodoro, Exercise, and Tasks
+(data intact, currently not exposed in navigation — see "Tasks" below).
+Future capabilities (Goals, Finance, Screen Time, etc.) are expected and
+the architecture must not make them hard to add.
+
+**Architecture read order for any new session working on this repo:**
+read this file in full, then read `PROJECT_STATUS.md`'s architecture
+sections before touching any code related to Study/Work, the generic node
+system, configuration, or the module registry — those areas have gone
+through several rounds of design correction and the *locked decisions*
+below are not optional interpretations.
 
 ## Multi-session collaboration protocol (READ THIS FIRST)
 
@@ -53,8 +73,39 @@ git history. Small, precise diffs only.
   to `users/{uid}/...` with `request.auth.uid == uid`.
 - Do NOT hardcode the user's name anywhere — always read from
   `profile.name` via `subscribeProfile`.
-- Do NOT hardcode "UPSC" as the only Study program — the Study system must
-  stay generic (Study Program → Subject → Content).
+- Do NOT build Study/Work (or any future hierarchical capability) as a
+  fixed-depth schema — NOT `studyPrograms → studySubjects → studyContents`,
+  not any other fixed number of levels. This was tried (see CHANGELOG.md,
+  the commit implementing Study/Pomodoro/Exercise) and does not meet the
+  requirement: it cannot represent real examples like
+  `College → Semester 5 → AI → Unit 1 → Neural Networks` (5 levels). Use
+  the generic `nodes` hierarchy instead — see "Generic node system" below.
+  This is a locked architecture decision, not a style preference.
+- Do NOT hardcode a fixed list of "content types" (lecture/video/book/
+  chapter/etc.) as a schema-level enum. A node's `name` is fully
+  user-defined; FocusOS does not need to know what a node "is" beyond its
+  `moduleKey` and `tracking.type`.
+- Do NOT add any automatic, unconditional data migration to the app's
+  login/startup flow. Any import between collections (e.g. `subjects` into
+  the generic `nodes` system) must be explicit (a button the user clicks),
+  opt-in, non-destructive to the source collection, and must not hardcode
+  any institutional/personal label into the data it creates — the user
+  names anything it creates. See `src/lib/data.js`'s
+  `migrateAcademicsToStudy_DISABLED_DO_NOT_CALL` for what NOT to do and
+  why it was disabled.
+- Do NOT let a user invent an arbitrary `moduleKey` value on a generic
+  node, and do NOT let a user add an arbitrary entry to the module
+  registry (`src/modules/registry.js`). Both are FocusOS-controlled closed
+  sets. Users control node `name`, `parentId`/hierarchy placement, and
+  (via configuration, once built) module visibility/order — never the
+  identifiers themselves.
+- Do NOT delete a feature's Firestore data as a way of disabling that
+  feature. Visibility is a configuration concern (`config/main`,
+  `src/modules/registry.js`); data is a persistence concern. They must
+  stay decoupled. (This is why Tasks' data and CRUD functions in
+  `data.js` were kept even while its nav/route were removed — the nav
+  removal was the wrong mechanism and should eventually be replaced with
+  a config-driven toggle, not deleted data.)
 - Do NOT expose `.env` or commit real Firebase keys to git (already
   gitignored — keep it that way).
 - Do NOT use localStorage for important application data — Firestore only.
@@ -62,6 +113,86 @@ git history. Small, precise diffs only.
   state — already implemented this way).
 - Do NOT introduce a second Hijri-calendar implementation — reuse
   `src/lib/hijri.js`.
+
+## Generic node system (locked architecture)
+
+For genuinely hierarchical, trackable domains (Study/Work today; possibly
+Goals/Health/Skills later, each added deliberately as its own `moduleKey`
+when actually built) — NOT for everything. Calendar events, reminders,
+timetable entries, Pomodoro sessions, exercise logs, and similar
+feature-specific data stay in their own collections, as they already are.
+This is a hybrid architecture, not a universal entity/type/properties/
+relations database — do not generalize it further than this.
+
+```
+users/{uid}/nodes/{nodeId}
+{
+  id
+  moduleKey: "study"            // closed set, FocusOS-controlled only
+  parentId: string | null
+  path: [ancestorId, ...]       // ancestors only, excludes self, derived from parentId
+  name: string                   // fully user-defined
+  order: number
+  archived: boolean
+
+  tracking: {
+    type: "checkbox" | "count" | "duration" | "target" | "percentage" | "manual" | "derived"
+    target: number | null
+    unit: string | null
+    period: "daily"               // only "daily" implemented; field exists for future extension
+  }
+  createdAt
+  updatedAt
+}
+
+users/{uid}/nodes/{nodeId}/values/{date}
+{ value: boolean | number, updatedAt }
+```
+
+Pure logic contracts already implemented and tested — use these, do not
+reimplement hierarchy/progress math inline in a page or in `data.js`:
+- `src/domain/nodeTree.js` — `computeNodePath`, `computeDescendantPathUpdates`,
+  `childrenOf`, `hasAncestor`, `wouldCreateCycle`
+- `src/domain/progress.js` — `calculateLeafProgress`,
+  `aggregateChildrenProgress` (average only — do not add weighted/sum/
+  any/all without a concrete approved requirement), `computeNodeProgress`
+
+Verify with: `node scripts/test-nodeTree.mjs` and `node scripts/test-progress.mjs`.
+
+**Not yet built:** `src/data/nodes.js` (Firestore CRUD for `nodes` and
+`nodes/{id}/values/{date}`), the real `/study` UI on this model. See
+`PROJECT_STATUS.md` for what's next.
+
+## Module registry & configuration (locked architecture)
+
+`src/modules/registry.js` — the closed, FocusOS-controlled list of
+toggleable capabilities (nav items). Do not add a module here casually;
+this is a deliberate app-level decision, not user data. This is a
+*different* closed set from a node's `moduleKey` — do not conflate them
+(see comments in `registry.js`).
+
+`users/{uid}/config/main` (not yet built) — the user's own visibility/
+order preferences: `enabledModules`, `homeWidgets`, `navOrder`. Missing
+config must always fall back to "everything visible, default order" —
+absence of config must never hide something that used to work. Disabling
+a module here must only ever affect what renders; it must never touch
+that module's underlying Firestore collection.
+
+## Frontend layering (incremental direction, not a rewrite mandate)
+
+New code for genuinely hierarchy/progress-related pure logic goes in
+`src/domain/` (zero Firebase, zero React — must be `node`-testable in
+isolation, following the pattern in `nodeTree.js`/`progress.js`).
+Firestore CRUD, as it's split out of the single `data.js` file over time,
+goes in `src/data/` (one file per domain). This split happens
+incrementally, whenever a file is next touched for another reason — do
+not do a big-bang reorganization of working code just to match this
+structure.
+
+Dependency direction: `pages` -> `components`/`data`/`domain`/`modules`/
+`lib/auth.jsx`. `data` -> `domain` + Firebase only (never imports from
+`pages`/`components`). `domain` -> nothing but other `domain` files (no
+Firebase, no React). `modules/registry.js` is metadata only.
 
 ## Tech stack
 
@@ -74,29 +205,45 @@ git history. Small, precise diffs only.
 ## Architecture map
 
 src/
+domain/ — pure logic, zero Firebase/React, node-testable (see scripts/)
+nodeTree.js, progress.js — generic node hierarchy + progress contracts
+modules/
+registry.js — closed, FocusOS-controlled list of toggleable capabilities
 lib/
 firebase.js — Firebase app init (reads .env via import.meta.env)
 auth.jsx — AuthContext: user, login(), logout()
-data.js — ALL Firestore reads/writes live here. Add new
-collections' CRUD functions here, not inline in pages.
+data.js — ALL Firestore reads/writes live here (being split into
+src/data/ incrementally — see "Frontend layering" above).
+Add new collections' CRUD functions here for now.
 dates.js — date math: todayKey, daysUntil, formatDate,
 getMonthGrid, isSameDay, currentStreak, last30Days
 hijri.js — Gregorian<->Hijri conversion (tabular/civil algorithm,
 ±adjustmentDays offset from profile settings)
 reminders.js — recurrence logic: occursOnDate(), nextOccurrence()
+timetable.js — duration/conflict validation for Timetables
+study.js — Study content helpers tied to the OLD fixed schema; do
+not extend, being replaced (see PROJECT_STATUS.md)
 components/
 Sidebar.jsx — collapsible nav, localStorage-persisted collapse state
 Layout.jsx — wraps authenticated pages with Sidebar
-Logo.jsx — brand mark (SVG monogram), reused across
-Login/ProfileSetup/Sidebar
-ProgressRing.jsx — circular progress SVG, the signature visual motif
-LiveClock.jsx — 12-hour live-updating clock
+logo.jsx — brand mark (SVG monogram); NOTE: imported elsewhere as
+"Logo" (capital L) — a known casing bug, see PROJECT_STATUS.md
+ProgressRing.jsx — circular progress SVG; currently unused/dead code
+LiveClock.jsx, TimePicker.jsx, StartCard.jsx (exports StatCard —
+filename mismatch, known issue)
 pages/
 Login.jsx, ProfileSetup.jsx, Settings.jsx
-Dashboard.jsx — Home / Command Center
+Dashboard.jsx — Home; currently hardcoded widgets, target is
+config-driven (see "Module registry & configuration" above)
 Calendar.jsx — Gregorian+Hijri grid + full reminders CRUD
-Academics.jsx — Subjects -> Units -> Notes (Backlog / Sem 5)
-Tasks.jsx, Habits.jsx
+Timetables.jsx, Habits.jsx
+Academics.jsx — legacy Subjects -> Units -> Notes; kept, untouched,
+being superseded in UX by Study.jsx but never auto-migrated
+Study.jsx — CURRENTLY the old fixed Program->Subject->Content model;
+being rebuilt on the generic nodes hierarchy, see PROJECT_STATUS.md
+Pomodoro.jsx, Exercise.jsx — feature-specific, own collections
+Tasks.jsx — file + data intact, NOT currently routed/in nav; restore
+via the module/config system when built, not by re-adding blindly
 ComingSoon.jsx — placeholder for not-yet-built routes
 App.jsx — routing + Gate component (auth check -> profile check -> render)
 
@@ -118,8 +265,16 @@ users/{uid}/reminders/{id} { title, description, date, time, type,
 repeat, createdAt }
 
 
-Planned (not yet built — see PROJECT_STATUS.md): `timetables`,
-`timetableCompletions`, `studyPrograms`, `studySubjects`, `studyContents`.
+Also live: `timetables/{id}`, `timetableCompletions/{date}`,
+`pomodoroSessions/{id}`, `exerciseLogs/{id}`, `weightLogs/{date}`.
+
+`studyPrograms/{id}`, `studySubjects/{id}`, `studyContents/{id}` also
+currently exist (written by `Study.jsx`) but are being replaced — see
+"Generic node system" above. Do not add new fields or features to these
+three collections; new Study/Work work happens on `nodes` instead.
+
+Planned (not yet built — see PROJECT_STATUS.md): `nodes/{nodeId}`,
+`nodes/{nodeId}/values/{date}`, `config/main`.
 
 ## Design system
 
@@ -138,7 +293,10 @@ Planned (not yet built — see PROJECT_STATUS.md): `timetables`,
    `useAuth` fast-refresh and similar are known and fine to ignore).
 3. Manually reason through the feature's logic — e.g. recurrence math for
    reminders was verified with node one-off scripts before shipping, not
-   just "looks right."
+   just "looks right." For anything touching `src/domain/`, run the
+   committed scripts in `scripts/` (`node scripts/test-progress.mjs`,
+   `node scripts/test-nodeTree.mjs`) and add new cases there rather than
+   one-off, uncommitted verification — these are meant to accumulate.
 4. Never claim something is tested/working without actually running the
    build command in this session.
 
