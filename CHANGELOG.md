@@ -6,6 +6,98 @@ obvious).
 
 ---
 
+## 2026-09-03 — Phase 1: Generic Node Data Layer (`src/data/nodes.js`)
+
+Temporary takeover: Account 1 (the assigned implementer) hit its usage
+limit before starting this work. This session inspected the actual
+repository state first (confirmed via `git fetch`/`git log` — found
+`src/data/` did not exist yet, so this was greenfield, not a partial-work
+continuation), then implemented Phase 1 from scratch against the
+already-locked architecture and the already-tested
+`domain/nodeTree.js`/`domain/progress.js` contracts.
+
+**Added:**
+- `src/data/nodes.js` — Firestore CRUD for `nodes`/`nodes/{id}/values/{date}`.
+  Full function list: `addNode`, `getNode`, `updateNode`, `archiveNode`,
+  `deleteNode`, `getNodes`, `subscribeNodes`, `rootNodes`, `reparentNode`,
+  `setNodeValue`, `getNodeValue`, `subscribeNodeValue`,
+  `getNodeValueRange`. Validates `moduleKey` and `tracking.type` on every
+  write; `reparentNode` uses `domain/nodeTree.js`'s `wouldCreateCycle` and
+  `computeDescendantPathUpdates` rather than reimplementing hierarchy
+  logic; a node's `moduleKey` is validated to match its parent's on both
+  create and re-parent; archiving never touches historical
+  `values/{date}` documents.
+- `src/data/nodeValidation.js` — the `moduleKey`/`tracking` validation
+  logic, deliberately split out of `nodes.js` into its own Firebase-free
+  file so it can be unit-tested with plain `node` (`nodes.js` itself
+  transitively imports `lib/firebase.js`, which reads Vite's
+  `import.meta.env` and throws immediately outside a Vite build — this
+  is why `lib/data.js` has never had direct unit tests either, and why
+  this split was necessary rather than optional).
+- `scripts/test-nodeValidation.mjs` — 19 assertions covering moduleKey
+  validation (including the specific case of a nav-only key like
+  `"pomodoro"` correctly being rejected as an invalid node `moduleKey`),
+  all 7 tracking types, tracking normalization/defaults (including the
+  `target: 0` edge case — falsy but valid, must not be nulled), and node
+  name validation. All passing.
+
+**Changed:**
+- `src/modules/registry.js` — added an `isNodeModule` flag to `MODULES`
+  entries (`study` is the only one currently `true`) and derived
+  `NODE_MODULE_KEYS`/`isValidNodeModuleKey()` from it, rather than
+  creating a second, separate module-key list. This was a deliberate,
+  minimal resolution to a real conflict: the task instructions said to
+  use `registry.js` as "the source of truth for valid module keys," but
+  `registry.js`'s existing `MODULES` list is the broader nav-capability
+  set (includes `pomodoro`, `tasks`, `settings`, etc.) — using it
+  unmodified would have let a node be created with an invalid
+  `moduleKey` like `"pomodoro"`, exactly the conflation the architecture
+  was designed to prevent (see this file's 2026-09-03 "Architecture
+  foundation" entry and `CLAUDE.md`). Tagging the existing list rather
+  than adding a parallel one keeps a single source of truth while fixing
+  the scoping.
+
+**Explicitly NOT touched:** `App.jsx`, `Sidebar.jsx`, `Dashboard.jsx`,
+`Study.jsx`, `Pomodoro.jsx`, `Exercise.jsx`, `Tasks.jsx`, `config/main`
+(doesn't exist yet), `firestore.rules` (unnecessary — the existing
+wildcard rule already covers `nodes` and its subcollection), any
+migration/import logic, any UI wiring of the module registry. No node UI
+was built — this is data-layer only, per explicit instruction to stop
+before Phase 2.
+
+**Known test gap, recorded honestly rather than glossed over:**
+`nodes.js`'s actual Firestore calls (the CRUD itself) were NOT run
+against a live or emulated Firestore — no test framework or emulator is
+set up in this environment. Verified instead by: syntax check
+(`node --check`), a temporary/reverted forced import into `main.jsx` to
+confirm Vite's real build pipeline resolves the entire import chain with
+zero errors (module count went 1857 → 1862 and back cleanly), and code
+review against the already-tested `nodeTree.js`/`progress.js` it
+delegates to. The genuinely pure, extractable logic (validation) IS unit
+tested. Recommended next step, before building UI on this: a real
+Firestore emulator or scratch-project integration check.
+
+**Verification performed:** `npm run build` — 0 errors.
+`npx oxlint src/ scripts/` — 0 errors, 4 warnings, identical set to the
+prior session's baseline (2 pre-existing in `Study.jsx`, 1 in
+`Login.jsx`, 1 in `auth.jsx` — none introduced by this session's
+changes). `node scripts/test-nodeTree.mjs` — all passing, unchanged file.
+`node scripts/test-progress.mjs` — all passing, unchanged file.
+`node scripts/test-nodeValidation.mjs` — all passing, new file, 19
+assertions.
+
+**Files touched:** 3 new (`src/data/nodes.js`, `src/data/nodeValidation.js`,
+`scripts/test-nodeValidation.mjs`), 1 modified
+(`src/modules/registry.js`), plus `PROJECT_STATUS.md` and this file.
+
+**Git status:** this session does not have push access to GitHub (same
+limitation as the 2026-09-02 documentation-sync session) — the
+`git commit`/`git push` requested in the task instructions could not be
+performed. All changes are staged and verified locally; see the handed-off
+files/patch for the user to apply and push themselves.
+
+---
+
 ## 2026-09-03 — Architecture foundation: generic nodes, disabled auto-migration, corrected CLAUDE.md
 
 FocusOS's product direction was formally revised: from a fixed

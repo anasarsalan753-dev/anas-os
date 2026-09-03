@@ -262,58 +262,99 @@ fixed — recorded here for a future session to address explicitly.
 
 ---
 
+## Phase 1 complete (2026-09-03) — Generic Node Data Layer
+
+Account 1 had not yet started `src/data/nodes.js` when it hit its usage
+limit. This session (a temporary takeover, per explicit instruction)
+implemented it from scratch against the existing, already-tested
+`src/domain/nodeTree.js` and `src/domain/progress.js` contracts.
+
+**Added:**
+- `src/data/nodes.js` — full Firestore CRUD for `users/{uid}/nodes/{id}`
+  and `users/{uid}/nodes/{id}/values/{date}`: `addNode`, `getNode`,
+  `updateNode`, `archiveNode`, `deleteNode`, `getNodes`/`subscribeNodes`
+  (module + archived filtering), `rootNodes`, `reparentNode` (cycle
+  prevention, descendant path updates, cross-module-move prevention),
+  `setNodeValue`/`getNodeValue`/`subscribeNodeValue`/`getNodeValueRange`.
+  Delegates all hierarchy/path math to `domain/nodeTree.js` and all
+  tracking-type validation to the new `data/nodeValidation.js` — does not
+  reimplement either.
+- `src/data/nodeValidation.js` — pure (`node`-testable) validation split
+  out of `nodes.js` specifically for testability: `assertValidModuleKey`,
+  `assertValidTracking`, `normalizeTracking`, `isValidNodeName`.
+- `scripts/test-nodeValidation.mjs` — 19 assertions, all passing.
+
+**Changed:**
+- `src/modules/registry.js` — added `isNodeModule` flag to `MODULES`
+  entries (only `study` is currently `true`) and derived
+  `NODE_MODULE_KEYS`/`isValidNodeModuleKey()` from it. This was necessary
+  to give `nodes.js` a real source of truth for valid node `moduleKey`
+  values without creating a second, competing list — `registry.js`'s
+  original `MODULES` list is nav-level capabilities (includes
+  `pomodoro`, `tasks`, etc.), which is a different, broader set than
+  valid node `moduleKey`s; validating against the wrong list would have
+  let a node be created with `moduleKey: "pomodoro"`. See the file's
+  updated header comment for the full explanation.
+
+**Known, honestly-recorded test gap:** `nodes.js` itself (the actual
+Firestore calls) has NOT been executed against a live or emulated
+Firestore — there is no test framework or Firestore emulator set up in
+this environment, and setting one up was judged out of scope for this
+pass. It was verified by: (1) `node --check` (syntax), (2) a temporary,
+reverted import into `main.jsx` to confirm Vite's actual build pipeline
+resolves the full import chain (`nodeValidation.js` → `domain/nodeTree.js`
++ `domain/progress.js` + `modules/registry.js`, plus `lib/firebase.js` +
+`lib/dates.js`) with zero errors, and (3) code review against the
+already-tested `nodeTree.js`/`progress.js` contracts it delegates to.
+The genuinely pure, extractable parts (moduleKey validation, tracking
+validation/normalization, name validation) ARE unit-tested — see
+`scripts/test-nodeValidation.mjs`. This mirrors existing project
+precedent: `src/lib/data.js` has never had direct unit tests for the
+same underlying reason (it also transitively depends on
+`import.meta.env` via `lib/firebase.js`); only its pure logic
+(`dates.js`, `reminders.js`, `timetable.js`) was ever testable this way.
+**A real integration test against Firestore (emulator or a scratch
+project) is recommended before `nodes.js` is relied on for anything
+user-facing** — flagging this explicitly rather than overstating
+confidence.
+
+**Verification performed:** `npm run build` (0 errors, both with and
+without a temporary forced import to confirm bundling — see above),
+`npx oxlint src/ scripts/` (0 errors, 4 pre-existing warnings, unchanged
+from before this session), all 4 test scripts passing
+(`test-nodeTree.mjs`, `test-progress.mjs` — both unchanged from last
+session and still passing — plus the new `test-nodeValidation.mjs`).
+
+**Explicitly not touched this session** (per instruction — Phase 2+):
+`Study.jsx`, `Pomodoro.jsx`, `Exercise.jsx`, `Dashboard.jsx`,
+`Sidebar.jsx`, `Tasks.jsx`, `App.jsx`, `config/main`, `firestore.rules`,
+any migration/import feature, any UI wiring of the module registry.
+
+---
+
 ## Next Task
 
-Do these in order — each depends on the one before it.
+**1. Recommended before anything else: set up a minimal Firestore
+integration check** for `data/nodes.js` (Firebase emulator, or a
+throwaway test project) — the honest test gap noted above. Not
+technically blocking, but risk-reducing before building UI on top of an
+unverified data layer.
 
-**1. Confirm live-data state of the disabled migration.** Check the
-Firebase console (or a signed-in session) for
-`users/{uid}/meta/studyMigrated`. If it exists, decide (with the user)
-whether to leave the auto-created `studyPrograms`/etc. documents in place
-(harmless, inert) or delete them. This is a data decision, not a code
-task — don't act on it without the user's explicit go-ahead. Do NOT touch
-`subjects` either way.
+**2. Confirm live-data state of the disabled migration** (unchanged from
+before — still needs a manual Firebase console check, see
+"Architecture foundation" note above, still not done as of this Phase 1
+session).
 
-**2. Build `src/data/nodes.js`** — Firestore CRUD for
-`users/{uid}/nodes/{nodeId}` and `users/{uid}/nodes/{nodeId}/values/{date}`,
-built directly against the contracts already implemented and tested in
-`src/domain/nodeTree.js` and `src/domain/progress.js` (do not
-reimplement path/progress logic here — import and use them). Follow the
-CRUD style already established in `src/lib/data.js` (e.g. `addDoc`/
-`updateDoc` with `serverTimestamp()`, `writeBatch` for the
-re-parent-updates-descendants case). No UI yet.
+**3. Rebuild `/study`** on `data/nodes.js` — arbitrary `parentId` depth,
+no `CONTENT_TYPES` enum, `moduleKey: "study"` on every node. Leave the
+old `Study.jsx`/`studyPrograms`-etc. reachable until the new version is
+verified working.
 
-**3. Rebuild `/study`** on the generic `nodes` model. The existing
-`Study.jsx` UI shell (breadcrumb nav, add/edit modals) is a reasonable
-visual reference but the data layer underneath must be entirely new —
-arbitrary `parentId` depth, no `CONTENT_TYPES` enum, `moduleKey: "study"`
-on every node. Do not wire any automatic import from `subjects`; if an
-import feature is wanted, it's a separate, explicit, user-triggered,
-non-destructive action (see CLAUDE.md's migration rule), and the user
-names the imported root themselves — never hardcode an institutional
-name. Leave the OLD `Study.jsx`/`studyPrograms`-etc. working and reachable
-under a different path (or simply leave the route pointed at the old
-version until the new one is verified) so there's a rollback path during
-development — don't delete the old implementation until the new one is
-confirmed working.
+**4. Re-link Pomodoro** to `linkedNodeId` once step 3 exists.
 
-**4. Re-link Pomodoro.** Once step 3 is done, change `Pomodoro.jsx`'s
-`programId`/`subjectId` selects to select a node from the `study` module
-tree, storing `linkedNodeId` instead. Historical sessions keep their old
-fields untouched (don't migrate old data, just stop writing the old
-fields going forward).
-
-**5. Build `config/main`** (`src/data/config.js`) and wire
-`src/modules/registry.js` into `Sidebar.jsx` (module visibility/order)
-and `Dashboard.jsx` (Home widget visibility/order), with a safe fallback
-to today's fixed layout when `config/main` doesn't exist. This is also
-where Tasks gets properly restored — add its route/nav back
-unconditionally in code, gated by `enabledModules.tasks` (default value
-still to be decided).
-
-**Do not start step 2 until step 1's data-risk check has at least been
-raised with the user** — it doesn't block the code, but skipping it means
-nobody ever finds out if the auto-migration already ran.
+**5. Build `config/main`** and wire `modules/registry.js` into
+`Sidebar.jsx`/`Dashboard.jsx`, restoring Tasks via a config toggle rather
+than unconditional re-routing.
 
 ---
 
