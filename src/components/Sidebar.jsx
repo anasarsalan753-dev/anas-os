@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  Home, Calendar, Clock, BookOpen, GraduationCap,
-  CheckSquare, Flame, Settings, PanelLeftClose, PanelLeft, Menu, X,
+  Home, Calendar, Clock, GraduationCap, Timer, Dumbbell,
+  Flame, Settings, PanelLeftClose, PanelLeft, Menu, X,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import Logo from "./Logo";
@@ -11,9 +11,9 @@ const links = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/calendar", label: "Calendar", icon: Calendar },
   { to: "/timetables", label: "Timetables", icon: Clock },
-  { to: "/academics", label: "Academics", icon: BookOpen },
-  { to: "/study", label: "Study", icon: GraduationCap },
-  { to: "/tasks", label: "Tasks", icon: CheckSquare },
+  { to: "/study", label: "Study / Work", icon: GraduationCap },
+  { to: "/pomodoro", label: "Pomodoro", icon: Timer },
+  { to: "/exercise", label: "Exercise", icon: Dumbbell },
   { to: "/habits", label: "Habits", icon: Flame },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

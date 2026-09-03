@@ -102,7 +102,130 @@ export const addDeadline = (uid, data) =>
 export const deleteDeadline = (uid, deadlineId) =>
   deleteDoc(doc(db, ...userPath(uid, "deadlines", deadlineId)));
 
+// ---------- Study / Work (generic — replaces the fixed Academics module) ----------
+// users/{uid}/studyPrograms/{id}   -> { name }
+// users/{uid}/studySubjects/{id}   -> { programId, name }
+// users/{uid}/studyContents/{id}   -> { subjectId, type, title, notes, url,
+//                                       instructor, hasDuration,
+//                                       totalSeconds, completedSeconds, done }
+export const addStudyProgram = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "studyPrograms")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+export const updateStudyProgram = (uid, id, data) =>
+  updateDoc(doc(db, ...userPath(uid, "studyPrograms", id)), data);
+export const deleteStudyProgram = (uid, id) =>
+  deleteDoc(doc(db, ...userPath(uid, "studyPrograms", id)));
+
+export const addStudySubject = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "studySubjects")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+export const updateStudySubject = (uid, id, data) =>
+  updateDoc(doc(db, ...userPath(uid, "studySubjects", id)), data);
+export const deleteStudySubject = (uid, id) =>
+  deleteDoc(doc(db, ...userPath(uid, "studySubjects", id)));
+
+export const addStudyContent = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "studyContents")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+export const updateStudyContent = (uid, id, data) =>
+  updateDoc(doc(db, ...userPath(uid, "studyContents", id)), data);
+export const deleteStudyContent = (uid, id) =>
+  deleteDoc(doc(db, ...userPath(uid, "studyContents", id)));
+
+// One-time, NON-DESTRUCTIVE migration of the legacy Academics `subjects`
+// collection into the new generic Study/Work hierarchy. The original
+// `subjects` collection is never modified or deleted — it remains as a
+// historical backup indefinitely, per explicit user requirement.
+export async function migrateAcademicsToStudy(uid) {
+  const flagRef = doc(db, ...userPath(uid, "meta", "studyMigrated"));
+  const flagSnap = await getDoc(flagRef);
+  if (flagSnap.exists()) return;
+
+  const subjectsSnap = await getDocs(collection(db, ...userPath(uid, "subjects")));
+  if (subjectsSnap.empty) {
+    await setDoc(flagRef, { migratedAt: new Date().toISOString(), skipped: true });
+    return;
+  }
+
+  const programRef = await addDoc(collection(db, ...userPath(uid, "studyPrograms")), {
+    name: "B.Tech",
+    createdAt: serverTimestamp(),
+  });
+
+  for (const subjectDoc of subjectsSnap.docs) {
+    const s = subjectDoc.data();
+    const tag = s.type === "backlog" ? "(Backlog)" : s.type === "sem5" ? "(Sem 5)" : "";
+    const subjectRef = await addDoc(collection(db, ...userPath(uid, "studySubjects")), {
+      programId: programRef.id,
+      name: [s.name, tag].filter(Boolean).join(" "),
+      createdAt: serverTimestamp(),
+    });
+    for (const unit of s.units || []) {
+      await addDoc(collection(db, ...userPath(uid, "studyContents")), {
+        subjectId: subjectRef.id,
+        type: "notes",
+        title: unit.name,
+        notes: unit.notes || "",
+        hasDuration: false,
+        done: !!unit.done,
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
+  await setDoc(flagRef, { migratedAt: new Date().toISOString(), skipped: false });
+}
+
+// ---------- Pomodoro ----------
+// users/{uid}/pomodoroSessions/{id} -> { date, durationMinutes, label,
+//                                         studyContentId, completedAt }
+export const addPomodoroSession = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "pomodoroSessions")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+
+export function subscribePomodoroSessions(uid, cb) {
+  return subscribeCollection(uid, "pomodoroSessions", cb);
+}
+
+// ---------- Exercise ----------
+// users/{uid}/exerciseLogs/{id} -> { date, name, durationMinutes, sets,
+//                                     reps, createdAt }
+export const addExerciseLog = (uid, data) =>
+  addDoc(collection(db, ...userPath(uid, "exerciseLogs")), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+export const updateExerciseLog = (uid, id, data) =>
+  updateDoc(doc(db, ...userPath(uid, "exerciseLogs", id)), data);
+export const deleteExerciseLog = (uid, id) =>
+  deleteDoc(doc(db, ...userPath(uid, "exerciseLogs", id)));
+
+// Weight history: users/{uid}/weightLogs/{YYYY-MM-DD} -> { weightKg }
+// Height is a single slow-changing value, stored on profile instead
+// (see setProfile heightCm field) — weight changes often enough during
+// a gain/loss goal to warrant real per-day history.
+export const setWeightLog = (uid, dateKey, weightKg) =>
+  setDoc(doc(db, ...userPath(uid, "weightLogs", dateKey)), { weightKg }, { merge: true });
+
+export function subscribeWeightLogs(uid, cb) {
+  const ref = collection(db, ...userPath(uid, "weightLogs"));
+  return onSnapshot(ref, (snap) => {
+    const out = {};
+    snap.docs.forEach((d) => (out[d.id] = d.data().weightKg));
+    cb(out);
+  });
+}
+
 // ---------- Namaz (5 daily prayers) ----------
+// users/{uid}/prayerLogs/{YYYY-MM-DD} -> { fajr, dhuhr, asr, maghrib, isha: bool }
 export const PRAYERS = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
 export const setPrayerLog = (uid, dateKey, prayer, value) =>
@@ -122,6 +245,7 @@ export function subscribePrayerLogs(uid, cb) {
 }
 
 // ---------- Timetables ----------
+// users/{uid}/timetables/{id} -> { name, description, active, entries:[{id,from,to,task}] }
 export const addTimetable = (uid, data) =>
   addDoc(collection(db, ...userPath(uid, "timetables")), {
     ...data,
@@ -135,6 +259,8 @@ export const updateTimetable = (uid, id, data) =>
 export const deleteTimetable = (uid, id) =>
   deleteDoc(doc(db, ...userPath(uid, "timetables", id)));
 
+// Atomically activates one timetable and deactivates all others, so the
+// "only one active at a time" rule can never be violated by a partial write.
 export async function setActiveTimetable(uid, timetableId) {
   const ref = collection(db, ...userPath(uid, "timetables"));
   const snap = await getDocs(ref);
@@ -145,6 +271,9 @@ export async function setActiveTimetable(uid, timetableId) {
   await batch.commit();
 }
 
+// Completion is date-based history, never stored on the timetable itself —
+// a reused timetable gets a fresh checkbox every day while history persists.
+// users/{uid}/timetableCompletions/{YYYY-MM-DD} -> { "<timetableId>:<entryId>": true }
 export const setTimetableCompletion = (uid, dateKey, entryKey, value) =>
   setDoc(
     doc(db, ...userPath(uid, "timetableCompletions", dateKey)),
@@ -161,8 +290,8 @@ export function subscribeTimetableCompletions(uid, cb) {
   });
 }
 
-
 // ---------- Reminders ----------
+// users/{uid}/reminders/{id} -> { title, description, date, time, type, repeat }
 export const addReminder = (uid, data) =>
   addDoc(collection(db, ...userPath(uid, "reminders")), {
     ...data,

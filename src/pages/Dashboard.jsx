@@ -8,6 +8,7 @@ import {
   subscribePrayerLogs,
   setPrayerLog,
   subscribeTimetableCompletions,
+  subscribePomodoroSessions,
   PRAYERS,
 } from "../lib/data";
 import { daysUntil, formatDate, todayKey, currentStreak, timeOfDayGreeting } from "../lib/dates";
@@ -21,7 +22,6 @@ const PRAYER_LABELS = { fajr: "Fajr", dhuhr: "Dhuhr", asr: "Asr", maghrib: "Magh
 export default function Dashboard() {
   const { user } = useAuth();
   const [deadlines, setDeadlines] = useState([]);
-  const [tasks, setTasks] = useState([]);
   const [habits, setHabits] = useState([]);
   const [logs, setLogs] = useState({});
   const [profile, setProfileState] = useState(null);
@@ -29,12 +29,13 @@ export default function Dashboard() {
   const [prayerLogs, setPrayerLogs] = useState({});
   const [timetables, setTimetables] = useState([]);
   const [ttCompletions, setTtCompletions] = useState({});
+  const [pomodoroSessions, setPomodoroSessions] = useState([]);
+  const [exerciseLogs, setExerciseLogs] = useState([]);
 
   useEffect(() => {
     if (!user) return;
     const subs = [
       subscribeCollection(user.uid, "deadlines", setDeadlines),
-      subscribeCollection(user.uid, "tasks", setTasks),
       subscribeHabitList(user.uid, setHabits),
       subscribeHabitLogs(user.uid, setLogs),
       subscribeProfile(user.uid, setProfileState),
@@ -42,30 +43,41 @@ export default function Dashboard() {
       subscribePrayerLogs(user.uid, setPrayerLogs),
       subscribeCollection(user.uid, "timetables", setTimetables),
       subscribeTimetableCompletions(user.uid, setTtCompletions),
+      subscribePomodoroSessions(user.uid, setPomodoroSessions),
+      subscribeCollection(user.uid, "exerciseLogs", setExerciseLogs),
     ];
     return () => subs.forEach((unsub) => unsub());
   }, [user]);
 
   const today = todayKey();
 
-  const todayTasks = tasks.filter((t) => t.dueDate === today);
-  const doneToday = todayTasks.filter((t) => t.completed).length;
-  const taskPercent = todayTasks.length ? Math.round((doneToday / todayTasks.length) * 100) : 0;
-
+  // Habits
   const todayLog = logs[today] || {};
   const habitsDoneToday = habits.filter((h) => todayLog[h.id]).length;
   const habitPercent = habits.length ? Math.round((habitsDoneToday / habits.length) * 100) : 0;
   const bestStreak = habits.reduce((max, h) => Math.max(max, currentStreak(logs, h.id)), 0);
 
+  // Namaz
   const todayPrayers = prayerLogs[today] || {};
   const prayersDone = PRAYERS.filter((p) => todayPrayers[p]).length;
   const prayerPercent = Math.round((prayersDone / PRAYERS.length) * 100);
 
+  // Timetable follow-through
   const activeTimetable = timetables.find((t) => t.active);
   const todayTtCompletions = ttCompletions[today] || {};
   const ttEntries = activeTimetable?.entries || [];
   const ttDone = ttEntries.filter((e) => todayTtCompletions[`${activeTimetable?.id}:${e.id}`]).length;
   const ttPercent = ttEntries.length ? Math.round((ttDone / ttEntries.length) * 100) : 0;
+
+  // Pomodoro today
+  const todayFocusMin = pomodoroSessions
+    .filter((s) => s.date === today)
+    .reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+
+  // Exercise today
+  const todayExercise = exerciseLogs.filter((e) => e.date === today);
+  const exerciseDone = todayExercise.filter((e) => e.completed).length;
+  const exercisePercent = todayExercise.length ? Math.round((exerciseDone / todayExercise.length) * 100) : 0;
 
   const upcoming = [...deadlines]
     .filter((d) => daysUntil(d.date) >= 0)
@@ -117,7 +129,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard
           title="Habits"
           value={`${habitsDoneToday}/${habits.length || 0}`}
@@ -133,11 +145,17 @@ export default function Dashboard() {
           sublabel={activeTimetable ? activeTimetable.name : "No active timetable"}
         />
         <StatCard
-          title="Tasks"
-          value={`${doneToday}/${todayTasks.length || 0}`}
-          percent={taskPercent}
-          color="#C9A24B"
-          sublabel={todayTasks.length === 0 ? "Nothing scheduled today" : `${taskPercent}% complete`}
+          title="Pomodoro"
+          value={`${todayFocusMin}m`}
+          color="#CB7360"
+          sublabel="Focused today"
+        />
+        <StatCard
+          title="Exercise"
+          value={`${exerciseDone}/${todayExercise.length || 0}`}
+          percent={exercisePercent}
+          color="#B85C4A"
+          sublabel={todayExercise.length === 0 ? "Nothing logged today" : `${exercisePercent}% complete`}
         />
         <div className="card p-4">
           <p className="text-[11px] font-semibold text-parchment-300 uppercase tracking-wide mb-2.5">

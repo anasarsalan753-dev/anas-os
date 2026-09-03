@@ -1,26 +1,27 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import { seedInitialData, subscribeProfile } from "./lib/data";
+import { seedInitialData, subscribeProfile, migrateAcademicsToStudy } from "./lib/data";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import ProfileSetup from "./pages/ProfileSetup";
 import Dashboard from "./pages/Dashboard";
-import Academics from "./pages/Academics";
 import Calendar from "./pages/Calendar";
 import Timetables from "./pages/Timetables";
-import Tasks from "./pages/Tasks";
+import Study from "./pages/Study";
+import Pomodoro from "./pages/Pomodoro";
+import Exercise from "./pages/Exercise";
 import Habits from "./pages/Habits";
 import Settings from "./pages/Settings";
-import ComingSoon from "./pages/ComingSoon";
 
 function Gate({ children }) {
   const { user } = useAuth();
-  const [profile, setProfile] = useState(undefined); // undefined = loading
+  const [profile, setProfile] = useState(undefined);
 
   useEffect(() => {
     if (!user) return;
     seedInitialData(user.uid);
+    migrateAcademicsToStudy(user.uid);
     const unsub = subscribeProfile(user.uid, setProfile);
     return unsub;
   }, [user]);
@@ -52,12 +53,9 @@ function AppRoutes() {
       <Route path="/" element={<Gate><Dashboard /></Gate>} />
       <Route path="/calendar" element={<Gate><Calendar /></Gate>} />
       <Route path="/timetables" element={<Gate><Timetables /></Gate>} />
-      <Route path="/academics" element={<Gate><Academics /></Gate>} />
-      <Route
-        path="/study"
-        element={<Gate><ComingSoon title="Study" note="Generic study programs with lecture progress tracking — coming soon." /></Gate>}
-      />
-      <Route path="/tasks" element={<Gate><Tasks /></Gate>} />
+      <Route path="/study" element={<Gate><Study /></Gate>} />
+      <Route path="/pomodoro" element={<Gate><Pomodoro /></Gate>} />
+      <Route path="/exercise" element={<Gate><Exercise /></Gate>} />
       <Route path="/habits" element={<Gate><Habits /></Gate>} />
       <Route path="/settings" element={<Gate><Settings /></Gate>} />
       <Route path="*" element={<Navigate to="/" replace />} />
